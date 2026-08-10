@@ -5,23 +5,65 @@
 (async function () {
   'use strict';
 
-  const path = decodeURIComponent(window.location.pathname);
-  if (!path.startsWith('/wiki/')) return;
+  const BANNER_ID = 'nepo-maybe-baby-root';
 
-  const rawTitle = path.replace(/^\/wiki\//, '');
-  if (rawTitle.includes(':')) return;
+  // The article the banner currently reflects, plus a token that invalidates
+  // lookups still in flight when the article changes underneath them.
+  let shownPath = null;
+  let latestRun = 0;
 
-  try {
-    const qid = await findQid();
-    if (!qid) return;
+  update({ trustPageMarkup: true });
+  watchForNavigation();
 
-    const parentQids = await fetchParentQids(qid);
-    if (parentQids.length === 0) return;
+  async function update({ trustPageMarkup }) {
+    const path = decodeURIComponent(window.location.pathname);
+    if (path === shownPath) return;
+    shownPath = path;
 
-    const parents = await fetchParentPages(parentQids);
-    if (parents.length > 0) renderBanner(parents);
-  } catch (error) {
-    console.error('[nepo-maybe-baby]', error);
+    // Drop the previous article's banner before doing anything slow, so a
+    // stale one is never left sitting above a different article.
+    const run = ++latestRun;
+    document.getElementById(BANNER_ID)?.remove();
+
+    if (!path.startsWith('/wiki/')) return;
+
+    const rawTitle = path.replace(/^\/wiki\//, '');
+    if (rawTitle.includes(':')) return;
+
+    try {
+      const qid = await findQid(rawTitle, trustPageMarkup);
+      if (!qid || run !== latestRun) return;
+
+      const parentQids = await fetchParentQids(qid);
+      if (parentQids.length === 0 || run !== latestRun) return;
+
+      const parents = await fetchParentPages(parentQids);
+      if (parents.length === 0 || run !== latestRun) return;
+
+      renderBanner(parents);
+    } catch (error) {
+      console.error('[nepo-maybe-baby]', error);
+    }
+  }
+
+  // Wikipedia serves article-to-article navigation as full page loads, so on a
+  // normal visit this never fires and the script runs exactly once. It exists
+  // so that a client-side navigation -- from a future Wikipedia change, a
+  // gadget, or back/forward through one -- cannot strand the previous
+  // article's banner above a different article.
+  //
+  // Watching the <title> node is deliberate: it is a single small element that
+  // any navigation must update, where a subtree observer on the article body
+  // would fire constantly for no benefit.
+  function watchForNavigation() {
+    const rerun = () => update({ trustPageMarkup: false });
+
+    window.addEventListener('popstate', rerun);
+
+    const title = document.querySelector('title');
+    if (title) {
+      new MutationObserver(rerun).observe(title, { childList: true });
+    }
   }
 
   // Deliberately no background script: every request below is a legal
@@ -43,32 +85,31 @@
   }
 
   // The article already carries its own Wikidata id in the "Wikidata item"
-  // sidebar link, so the overwhelmingly common case costs no lookup request
-  // at all. A page with no such link usually has no Wikidata item, and we
-  // stop there having made zero requests.
-  async function findQid() {
-    const link = document.querySelector('#t-wikibase a');
-    const href = link?.getAttribute('href') ?? '';
-    const fromDom = /\/(Q\d+)(?:[?#]|$)/.exec(href);
-    if (fromDom) return fromDom[1];
+  // sidebar link, so a normal page load costs no lookup request at all. A page
+  // with no such link usually has no Wikidata item, and we stop there having
+  // made zero requests.
+  //
+  // After a client-side navigation that link may still describe the article we
+  // just left, so it is not trusted there and the id is looked up by title
+  // instead.
+  async function findQid(rawTitle, trustPageMarkup) {
+    if (trustPageMarkup) {
+      const link = document.querySelector('#t-wikibase a');
+      const fromDom = /\/(Q\d+)(?:[?#]|$)/.exec(link?.getAttribute('href') ?? '');
+      if (fromDom) return fromDom[1];
+    }
 
-    return fetchQidFromApi();
+    return fetchQidFromApi(rawTitle);
   }
 
-  // Fallback for when that link is missing. Rarely used, but it means a
-  // change to Wikipedia's markup degrades to the old behaviour rather than
-  // silently showing no banners forever.
+  // Fallback for when the sidebar link is missing or untrusted. Rarely used on
+  // a normal load, but it means a change to Wikipedia's markup degrades to the
+  // old behaviour rather than silently showing no banners forever.
   //
-  // It reads the canonical title rather than the URL: visiting a redirect
-  // leaves the redirecting title in the address bar, and Wikidata cannot
-  // resolve those.
-  async function fetchQidFromApi() {
-    const canonical = document.querySelector('link[rel="canonical"]');
-    const title = canonical
-      ? decodeURIComponent(new URL(canonical.href).pathname.replace(/^\/wiki\//, ''))
-      : rawTitle;
-
-    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&redirects=1&prop=pageprops&ppprop=wikibase_item&format=json&origin=*`;
+  // `redirects=1` resolves redirect titles server-side, so the title taken
+  // from the URL works even when the reader arrived via a redirect.
+  async function fetchQidFromApi(rawTitle) {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(rawTitle)}&redirects=1&prop=pageprops&ppprop=wikibase_item&format=json&origin=*`;
     const data = await fetchJson(url);
     const pages = Object.values(data?.query?.pages ?? {});
     return pages[0]?.pageprops?.wikibase_item ?? null;

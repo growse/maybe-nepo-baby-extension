@@ -85,6 +85,16 @@ to move into a background service worker.
 `innerHTML` assignment, and using `textContent` for parent names removes the
 need for manual escaping.
 
+**Navigation is watched, though Wikipedia does not currently need it.**
+Article-to-article navigation is a full page load, so the script normally runs
+once and the observer never fires. It is there so that a client-side
+navigation — from a future Wikipedia change, a gadget, or back/forward through
+one — cannot strand one article's banner above another. The observer watches
+the `<title>` node rather than the article body, because any navigation must
+update it and it is a single small element. Lookups carry a token so that a
+request still in flight when the article changes is discarded rather than
+drawing a banner for the page you just left.
+
 **Claims are fetched one property at a time, on purpose.** `wbgetclaims` only
 accepts a single property per call, so father and mother take two requests
 rather than one. That looks wasteful next to a single `wbgetentities` call
