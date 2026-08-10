@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff9ecb"/>
+      <stop offset="48%" stop-color="#ffc9a1"/>
+      <stop offset="100%" stop-color="#9db8ff"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+
+  <!-- Pedigree chart: two parent nodes joining down to one child node.
+       Shapes are kept fat and well separated so they don't merge into a
+       blob at 16px. -->
+  <g stroke="#ffffff" stroke-width="14" stroke-linecap="round" fill="none">
+    <path d="M34 52 V64 H94 V52"/>
+    <path d="M64 64 V78"/>
+  </g>
+  <circle cx="34" cy="34" r="16" fill="#ffffff"/>
+  <circle cx="94" cy="34" r="16" fill="#ffffff"/>
+  <circle cx="64" cy="97" r="18" fill="#ffffff"/>
+</svg>

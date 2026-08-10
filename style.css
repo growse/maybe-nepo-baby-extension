@@ -1,0 +1,108 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+/* Full-bleed bar injected as the first child of <body>, above whatever the
+   MediaWiki skin renders. Styles are id-scoped so the skin's rules don't
+   win, and `flex` is set defensively in case the skin makes <body> a
+   flex container. */
+#nepo-maybe-baby-root {
+  box-sizing: border-box;
+  width: 100%;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 7px 20px;
+  position: relative;
+  z-index: 1000;
+  background: linear-gradient(100deg, #ffd7e8 0%, #ffe9c7 45%, #d6e4ff 100%);
+  border-bottom: 2px solid #f2b8d4;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.07);
+  font-family: "Trebuchet MS", Verdana, Geneva, sans-serif;
+  color: #2b2340;
+}
+
+#nepo-maybe-baby-root .nmb-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+#nepo-maybe-baby-root .nmb-icon {
+  flex: 0 0 auto;
+  font-size: 20px;
+  line-height: 1;
+  transform-origin: 50% 80%;
+  animation: nmb-wobble 2.4s ease-in-out infinite;
+}
+
+#nepo-maybe-baby-root .nmb-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+#nepo-maybe-baby-root .nmb-title {
+  margin-right: 4px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+#nepo-maybe-baby-root .nmb-link {
+  color: #b1246f;
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 2px dotted #e79ec4;
+  white-space: nowrap;
+}
+
+#nepo-maybe-baby-root .nmb-link:hover {
+  color: #7d1550;
+  border-bottom-style: solid;
+}
+
+@keyframes nmb-wobble {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg) scale(1.08); }
+}
+
+/* Tone the pastels down so the bar doesn't glare in Wikipedia's dark mode. */
+@media (prefers-color-scheme: dark) {
+  #nepo-maybe-baby-root {
+    background: linear-gradient(100deg, #4a2c3d 0%, #4a3f2c 45%, #2f3a52 100%);
+    border-bottom-color: #6b4256;
+    color: #f4ecf6;
+  }
+
+  #nepo-maybe-baby-root .nmb-link {
+    color: #ff9ecb;
+    border-bottom-color: #a64d7d;
+  }
+
+  #nepo-maybe-baby-root .nmb-link:hover {
+    color: #ffc4de;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #nepo-maybe-baby-root .nmb-icon {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  #nepo-maybe-baby-root {
+    padding: 6px 12px;
+  }
+
+  #nepo-maybe-baby-root .nmb-text {
+    font-size: 13px;
+  }
+
+  #nepo-maybe-baby-root .nmb-icon {
+    font-size: 18px;
+  }
+}

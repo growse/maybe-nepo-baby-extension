@@ -1,0 +1,3 @@
+# Build output from `just package`
+dist/
+*.zip

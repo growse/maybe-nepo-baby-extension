@@ -1,0 +1,44 @@
+# Install with: pre-commit install
+# The AMO validator is slow (it fetches web-ext), so it runs on push rather
+# than on every commit.
+default_install_hook_types: [pre-commit, pre-push]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # LICENSE is excluded from every whitespace-fixing hook: it is the
+      # verbatim MPL 2.0 text and contains a line with trailing whitespace.
+      # Reformatting it would mean shipping an altered license.
+      - id: trailing-whitespace
+        exclude: ^LICENSE$
+      - id: end-of-file-fixer
+        exclude: ^LICENSE$
+      - id: mixed-line-ending
+        exclude: ^LICENSE$
+      - id: check-json
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: js-syntax
+        name: check JavaScript syntax
+        entry: bash -c 'for f in "$@"; do node --check "$f"; done' --
+        language: system
+        files: \.js$
+
+      - id: manifest-references
+        name: manifest references exist
+        entry: just check
+        language: system
+        pass_filenames: false
+        files: ^(manifest\.json|content\.js|style\.css|icons/.*)$
+
+      - id: web-ext-lint
+        name: AMO validator (web-ext lint)
+        entry: just lint
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
