@@ -1,0 +1,56 @@
+name: Release
+
+# Tagging v1.2.3 builds the package and attaches it to a GitHub release.
+# The same zip uploads to both the Chrome Web Store and addons.mozilla.org --
+# neither wants a .crx, and Chrome refuses self-hosted extensions on Windows
+# and macOS anyway.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - uses: extractions/setup-just@v4
+
+      - name: Install rsvg-convert
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+
+      # Both stores reject a re-upload of a version that already exists, and
+      # the failure arrives after the build. Catch the mismatch up front.
+      - name: Check the tag matches the manifest version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
+          echo "tag=$tag manifest=$manifest"
+          if [ "$tag" != "$manifest" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match manifest version $manifest"
+            exit 1
+          fi
+
+      - name: Lint with the AMO validator
+        run: just lint
+
+      - name: Build package
+        run: just package
+
+      - name: Attach the package to a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
