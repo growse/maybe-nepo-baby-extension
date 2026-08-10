@@ -12,7 +12,13 @@
   if (rawTitle.includes(':')) return;
 
   try {
-    const parents = await fetchParentsData(rawTitle);
+    const qid = await findQid();
+    if (!qid) return;
+
+    const parentQids = await fetchParentQids(qid);
+    if (parentQids.length === 0) return;
+
+    const parents = await fetchParentPages(parentQids);
     if (parents.length > 0) renderBanner(parents);
   } catch (error) {
     console.error('[nepo-maybe-baby]', error);
@@ -28,52 +34,81 @@
   // them. If Wikimedia ever tightens its CORS or CSP headers, Chrome will
   // break first and this logic has to move back into a background
   // service worker reached via runtime.sendMessage.
-  async function fetchParentsData(title) {
-    // 1. Get Wikidata QID from Wikipedia title
-    const mwUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&redirects=1&prop=pageprops&ppprop=wikibase_item&format=json&origin=*`;
-    const mwResp = await fetch(mwUrl).then(r => r.json());
-    const pages = mwResp?.query?.pages;
-    if (!pages) return [];
+  async function fetchJson(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText} for ${url}`);
+    }
+    return response.json();
+  }
 
-    const pageId = Object.keys(pages)[0];
-    if (pageId === "-1") return [];
+  // The article already carries its own Wikidata id in the "Wikidata item"
+  // sidebar link, so the overwhelmingly common case costs no lookup request
+  // at all. A page with no such link usually has no Wikidata item, and we
+  // stop there having made zero requests.
+  async function findQid() {
+    const link = document.querySelector('#t-wikibase a');
+    const href = link?.getAttribute('href') ?? '';
+    const fromDom = /\/(Q\d+)(?:[?#]|$)/.exec(href);
+    if (fromDom) return fromDom[1];
 
-    const qid = pages[pageId]?.pageprops?.wikibase_item;
-    if (!qid) return [];
+    return fetchQidFromApi();
+  }
 
-    // 2. Fetch Father (P22) and Mother (P25) claims from Wikidata
-    const wdUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${qid}&props=claims&format=json&origin=*`;
-    const wdResp = await fetch(wdUrl).then(r => r.json());
-    const claims = wdResp?.entities?.[qid]?.claims;
-    if (!claims) return [];
+  // Fallback for when that link is missing. Rarely used, but it means a
+  // change to Wikipedia's markup degrades to the old behaviour rather than
+  // silently showing no banners forever.
+  //
+  // It reads the canonical title rather than the URL: visiting a redirect
+  // leaves the redirecting title in the address bar, and Wikidata cannot
+  // resolve those.
+  async function fetchQidFromApi() {
+    const canonical = document.querySelector('link[rel="canonical"]');
+    const title = canonical
+      ? decodeURIComponent(new URL(canonical.href).pathname.replace(/^\/wiki\//, ''))
+      : rawTitle;
+
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&redirects=1&prop=pageprops&ppprop=wikibase_item&format=json&origin=*`;
+    const data = await fetchJson(url);
+    const pages = Object.values(data?.query?.pages ?? {});
+    return pages[0]?.pageprops?.wikibase_item ?? null;
+  }
+
+  // Father (P22) and mother (P25), fetched as two property-filtered requests
+  // in parallel. wbgetclaims takes only one property per call, but filtering
+  // is worth the extra request: fetching an entity's full claim set costs
+  // 20-190 KB gzipped, where these are a few hundred bytes each. Running them
+  // together keeps it to a single round trip.
+  async function fetchParentQids(qid) {
+    const responses = await Promise.all(['P22', 'P25'].map(property => fetchJson(
+      `https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${encodeURIComponent(qid)}&property=${property}&format=json&origin=*`
+    )));
 
     const parentQids = [];
-    ['P22', 'P25'].forEach(prop => {
-      if (claims[prop]) {
-        claims[prop].forEach(claim => {
+    for (const response of responses) {
+      for (const claims of Object.values(response?.claims ?? {})) {
+        for (const claim of claims) {
           const id = claim.mainsnak?.datavalue?.value?.id;
           if (id) parentQids.push(id);
-        });
+        }
       }
-    });
+    }
+    return parentQids;
+  }
 
-    if (parentQids.length === 0) return [];
-
-    // 3. Resolve parent QIDs to English Wikipedia URLs
-    const parentWdUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${parentQids.join('|')}&props=sitelinks/urls&sitefilter=enwiki&format=json&origin=*`;
-    const parentWdResp = await fetch(parentWdUrl).then(r => r.json());
+  // Resolve parent ids to English Wikipedia articles, dropping any parent who
+  // has a Wikidata item but no article of their own.
+  async function fetchParentPages(parentQids) {
+    const url = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${parentQids.map(encodeURIComponent).join('|')}&props=sitelinks/urls&sitefilter=enwiki&format=json&origin=*`;
+    const data = await fetchJson(url);
 
     const parents = [];
     for (const pid of parentQids) {
-      const enwiki = parentWdResp?.entities?.[pid]?.sitelinks?.enwiki;
+      const enwiki = data?.entities?.[pid]?.sitelinks?.enwiki;
       if (enwiki) {
-        parents.push({
-          title: enwiki.title,
-          url: enwiki.url
-        });
+        parents.push({ title: enwiki.title, url: enwiki.url });
       }
     }
-
     return parents;
   }
 

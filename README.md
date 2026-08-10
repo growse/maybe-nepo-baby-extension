@@ -22,12 +22,15 @@ Every Wikipedia article is linked to a structured record on
 [Wikidata](https://www.wikidata.org), Wikimedia's open database. Those records
 can list a person's father (property `P22`) and mother (`P25`).
 
-1. Find the Wikidata record for the article you're reading
-2. Read the father and mother properties, if they exist
+1. Read the article's Wikidata id straight out of the page — Wikipedia already
+   puts it in the "Wikidata item" sidebar link, so this costs no request
+2. Ask Wikidata for just the father and mother properties
 3. Check whether either parent has their own English Wikipedia article
 4. Show the banner only if at least one of them does
 
-It all runs on the public MediaWiki and Wikidata APIs.
+It all runs on the public MediaWiki and Wikidata APIs. An article with no
+parent data costs two small requests; one with no Wikidata item at all costs
+none.
 
 ## Install
 
@@ -81,6 +84,15 @@ to move into a background service worker.
 **The banner is built with DOM methods, not `innerHTML`.** AMO's linter rejects
 `innerHTML` assignment, and using `textContent` for parent names removes the
 need for manual escaping.
+
+**Claims are fetched one property at a time, on purpose.** `wbgetclaims` only
+accepts a single property per call, so father and mother take two requests
+rather than one. That looks wasteful next to a single `wbgetentities` call
+until you measure the payloads: a full claim set is 20 KB gzipped for a minor
+actor and 190 KB for a country, where the filtered requests are a few hundred
+bytes each. They are issued in parallel, so it stays one round trip. Since this
+runs on every article anyone opens, the bytes matter more than the request
+count.
 
 ## Privacy
 
