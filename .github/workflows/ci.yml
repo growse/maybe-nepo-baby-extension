@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '22'
 
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
 
       # `just package` regenerates the icons, so the runner needs rsvg-convert.
       - name: Install rsvg-convert
