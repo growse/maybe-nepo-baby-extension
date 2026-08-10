@@ -7,6 +7,20 @@
 
   const BANNER_ID = 'nepo-maybe-baby-root';
 
+  // Wikidata's class for a real person. Gods and legendary figures carry
+  // perfectly good P22/P25 claims -- Agamemnon is a "Greek mythological
+  // character", Zeus a deity, King Arthur a legendary figure -- and the joke
+  // only works about people who actually existed.
+  //
+  // Wikidata's judgement is followed rather than second-guessed: Homer is
+  // tagged both "legendary figure" and human, so he still qualifies.
+  //
+  // This is checked before the parent lookup rather than alongside it. Most
+  // articles are not about people at all, so one small request settles the
+  // common case, where running all three properties in parallel would spend
+  // three regardless.
+  const HUMAN = 'Q5';
+
   // The article the banner currently reflects, plus a token that invalidates
   // lookups still in flight when the article changes underneath them.
   let shownPath = null;
@@ -33,6 +47,9 @@
     try {
       const qid = await findQid(rawTitle, trustPageMarkup);
       if (!qid || run !== latestRun) return;
+
+      const isHuman = await fetchClaimIds(qid, 'P31').then(ids => ids.includes(HUMAN));
+      if (!isHuman || run !== latestRun) return;
 
       const parentQids = await fetchParentQids(qid);
       if (parentQids.length === 0 || run !== latestRun) return;
@@ -115,33 +132,41 @@
     return pages[0]?.pageprops?.wikibase_item ?? null;
   }
 
-  // Father (P22) and mother (P25), fetched as two property-filtered requests
-  // in parallel. wbgetclaims takes only one property per call, but filtering
-  // is worth the extra request: fetching an entity's full claim set costs
-  // 20-190 KB gzipped, where these are a few hundred bytes each. Running them
-  // together keeps it to a single round trip.
-  async function fetchParentQids(qid) {
-    const responses = await Promise.all(['P22', 'P25'].map(property => fetchJson(
+  // Read the entity ids out of a single property, dropping claims Wikidata has
+  // marked wrong.
+  //
+  // wbgetclaims takes one property per call, but filtering is worth the extra
+  // request: fetching an entity's full claim set costs 20-190 KB gzipped,
+  // where these are a few hundred bytes each.
+  async function fetchClaimIds(qid, property) {
+    const data = await fetchJson(
       `https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${encodeURIComponent(qid)}&property=${property}&format=json&origin=*`
-    )));
+    );
 
-    const parentQids = [];
-    for (const response of responses) {
-      for (const claims of Object.values(response?.claims ?? {})) {
-        for (const claim of claims) {
-          // Deprecated rank is Wikidata recording a statement as wrong rather
-          // than deleting it: mythological parentage, disputed paternity of
-          // living people, debunked claims kept for reference. Taking every
-          // claim regardless has this extension asserting them as fact.
-          if (claim.rank === 'deprecated') continue;
+    const ids = [];
+    for (const claims of Object.values(data?.claims ?? {})) {
+      for (const claim of claims) {
+        // Deprecated rank is Wikidata recording a statement as wrong rather
+        // than deleting it: mythological parentage, disputed paternity of
+        // living people, debunked claims kept for reference. Taking every
+        // claim regardless has this extension asserting them as fact.
+        if (claim.rank === 'deprecated') continue;
 
-          // novalue/somevalue snaks carry no id and drop out here.
-          const id = claim.mainsnak?.datavalue?.value?.id;
-          if (id) parentQids.push(id);
-        }
+        // novalue/somevalue snaks carry no id and drop out here.
+        const id = claim.mainsnak?.datavalue?.value?.id;
+        if (id) ids.push(id);
       }
     }
-    return parentQids;
+    return ids;
+  }
+
+  // Father (P22) and mother (P25) together, in one round trip.
+  async function fetchParentQids(qid) {
+    const [fathers, mothers] = await Promise.all([
+      fetchClaimIds(qid, 'P22'),
+      fetchClaimIds(qid, 'P25'),
+    ]);
+    return [...fathers, ...mothers];
   }
 
   // Resolve parent ids to English Wikipedia articles, dropping any parent who

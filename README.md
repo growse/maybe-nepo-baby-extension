@@ -24,12 +24,13 @@ can list a person's father (property `P22`) and mother (`P25`).
 
 1. Read the article's Wikidata id straight out of the page — Wikipedia already
    puts it in the "Wikidata item" sidebar link, so this costs no request
-2. Ask Wikidata for just the father and mother properties
-3. Check whether either parent has their own English Wikipedia article
-4. Show the banner only if at least one of them does
+2. Check the subject is a real person, and stop if not
+3. Ask Wikidata for just the father and mother properties
+4. Check whether either parent has their own English Wikipedia article
+5. Show the banner only if at least one of them does
 
-It all runs on the public MediaWiki and Wikidata APIs. An article with no
-parent data costs two small requests; one with no Wikidata item at all costs
+It all runs on the public MediaWiki and Wikidata APIs. An article that isn't
+about a person costs one small request; one with no Wikidata item at all costs
 none.
 
 ## Install
@@ -94,6 +95,15 @@ the `<title>` node rather than the article body, because any navigation must
 update it and it is a single small element. Lookups carry a token so that a
 request still in flight when the article changes is discarded rather than
 drawing a banner for the page you just left.
+
+**Only real people get a banner.** Gods and legendary figures have perfectly
+good parent claims — Agamemnon's parents are Atreus and Aerope, and both have
+articles — so without a check the banner turns up on Greek myth. The subject
+must be an instance of human (`Q5`). Wikidata's judgement is followed rather
+than second-guessed, so Homer, tagged both "legendary figure" and human, still
+qualifies. The check runs before the parent lookup rather than alongside it:
+most articles are not about people, so one small request settles the common
+case.
 
 **Deprecated claims are skipped.** Wikidata does not delete statements it
 considers wrong; it ranks them `deprecated` and keeps them for reference.
