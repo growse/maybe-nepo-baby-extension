@@ -95,6 +95,16 @@ update it and it is a single small element. Lookups carry a token so that a
 request still in flight when the article changes is discarded rather than
 drawing a banner for the page you just left.
 
+**Deprecated claims are skipped.** Wikidata does not delete statements it
+considers wrong; it ranks them `deprecated` and keeps them for reference.
+Treating every claim as fact had this extension announcing that Galerius is the
+son of Mars, that Konstantin Kuzakov is Stalin's son, and that a living person
+is the son of Juan Carlos I — the last a disputed paternity claim Wikidata
+explicitly marks as wrong. Normal and preferred ranks are both accepted: within
+a single parent property, competing normal-rank claims are usually legitimate
+(adoptive alongside biological), so filtering to preferred only would discard
+real data.
+
 **Claims are fetched one property at a time, on purpose.** `wbgetclaims` only
 accepts a single property per call, so father and mother take two requests
 rather than one. That looks wasteful next to a single `wbgetentities` call

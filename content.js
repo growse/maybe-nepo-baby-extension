@@ -129,6 +129,13 @@
     for (const response of responses) {
       for (const claims of Object.values(response?.claims ?? {})) {
         for (const claim of claims) {
+          // Deprecated rank is Wikidata recording a statement as wrong rather
+          // than deleting it: mythological parentage, disputed paternity of
+          // living people, debunked claims kept for reference. Taking every
+          // claim regardless has this extension asserting them as fact.
+          if (claim.rank === 'deprecated') continue;
+
+          // novalue/somevalue snaks carry no id and drop out here.
           const id = claim.mainsnak?.datavalue?.value?.id;
           if (id) parentQids.push(id);
         }
