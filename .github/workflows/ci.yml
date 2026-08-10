@@ -40,7 +40,7 @@ jobs:
         run: just package
 
       - name: Upload built extension
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nepo-maybe-baby
           path: dist/*.zip
