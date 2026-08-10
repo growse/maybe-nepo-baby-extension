@@ -105,6 +105,14 @@ qualifies. The check runs before the parent lookup rather than alongside it:
 most articles are not about people, so one small request settles the common
 case.
 
+**A parent needs a recorded date.** Being classed as human is not sufficient on
+its own. Saint Anne's mother Emerentia, a figure from apocrypha, is an instance
+of human in Wikidata with eight statements in total and no dates at all —
+nothing in her item marks her as legendary, so there is no clean signal to
+filter on. A recorded birth or death date stands in for one. This is a proxy
+and it fails in one direction: a real but poorly documented parent with no
+dates is dropped too, and the banner simply doesn't appear.
+
 **Deprecated claims are skipped.** Wikidata does not delete statements it
 considers wrong; it ranks them `deprecated` and keeps them for reference.
 Treating every claim as fact had this extension announcing that Galerius is the

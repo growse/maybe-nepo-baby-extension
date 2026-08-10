@@ -138,12 +138,12 @@
   // wbgetclaims takes one property per call, but filtering is worth the extra
   // request: fetching an entity's full claim set costs 20-190 KB gzipped,
   // where these are a few hundred bytes each.
-  async function fetchClaimIds(qid, property) {
+  async function fetchClaimValues(qid, property) {
     const data = await fetchJson(
       `https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${encodeURIComponent(qid)}&property=${property}&format=json&origin=*`
     );
 
-    const ids = [];
+    const values = [];
     for (const claims of Object.values(data?.claims ?? {})) {
       for (const claim of claims) {
         // Deprecated rank is Wikidata recording a statement as wrong rather
@@ -152,12 +152,17 @@
         // claim regardless has this extension asserting them as fact.
         if (claim.rank === 'deprecated') continue;
 
-        // novalue/somevalue snaks carry no id and drop out here.
-        const id = claim.mainsnak?.datavalue?.value?.id;
-        if (id) ids.push(id);
+        // novalue/somevalue snaks carry no value and drop out here.
+        const value = claim.mainsnak?.datavalue?.value;
+        if (value !== undefined) values.push(value);
       }
     }
-    return ids;
+    return values;
+  }
+
+  async function fetchClaimIds(qid, property) {
+    const values = await fetchClaimValues(qid, property);
+    return values.map(value => value?.id).filter(Boolean);
   }
 
   // Father (P22) and mother (P25) together, in one round trip.
@@ -170,19 +175,38 @@
   }
 
   // Resolve parent ids to English Wikipedia articles, dropping any parent who
-  // has a Wikidata item but no article of their own.
+  // has a Wikidata item but no article of their own, and then any parent too
+  // thinly recorded to treat as a documented person.
   async function fetchParentPages(parentQids) {
     const url = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${parentQids.map(encodeURIComponent).join('|')}&props=sitelinks/urls&sitefilter=enwiki&format=json&origin=*`;
     const data = await fetchJson(url);
 
-    const parents = [];
-    for (const pid of parentQids) {
-      const enwiki = data?.entities?.[pid]?.sitelinks?.enwiki;
-      if (enwiki) {
-        parents.push({ title: enwiki.title, url: enwiki.url });
-      }
-    }
-    return parents;
+    const candidates = parentQids
+      .map(qid => ({ qid, enwiki: data?.entities?.[qid]?.sitelinks?.enwiki }))
+      .filter(candidate => candidate.enwiki);
+
+    const documented = await Promise.all(candidates.map(c => hasRecordedDates(c.qid)));
+
+    return candidates
+      .filter((_, i) => documented[i])
+      .map(({ enwiki }) => ({ title: enwiki.title, url: enwiki.url }));
+  }
+
+  // Being classed as human is not enough on its own. Wikidata records
+  // Emerentia -- Saint Anne's mother, a figure from apocrypha -- as an
+  // instance of human, with eight statements in total and no dates at all.
+  // Nothing in her item marks her as legendary, so there is no clean signal to
+  // filter on; having a recorded birth or death date stands in for one.
+  //
+  // This is a proxy and it fails in one direction: a genuinely real but poorly
+  // documented parent with no recorded dates is dropped too, and the banner
+  // simply does not appear.
+  async function hasRecordedDates(qid) {
+    const [born, died] = await Promise.all([
+      fetchClaimValues(qid, 'P569'),
+      fetchClaimValues(qid, 'P570'),
+    ]);
+    return born.length > 0 || died.length > 0;
   }
 
   function renderBanner(parents) {
