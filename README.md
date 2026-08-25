@@ -1,5 +1,8 @@
 # Nepo Maybe Baby
 
+[![Firefox Add-on](https://img.shields.io/amo/v/nepo-maybe-baby?logo=firefoxbrowser&logoColor=white&label=Firefox%20Add-on)](https://addons.mozilla.org/en-GB/firefox/addon/nepo-maybe-baby/)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/jnnpioocgbkcpokgggkjapihiijegnah?logo=googlechrome&logoColor=white&label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/nepo-maybe-baby/jnnpioocgbkcpokgggkjapihiijegnah)
+
 A browser extension that spots Wikipedia articles where the subject's parents
 have their own Wikipedia pages, and gently points it out.
 
@@ -35,7 +38,12 @@ none.
 
 ## Install
 
-Not yet published to either store. To run it from source:
+- **Firefox** —
+  [addons.mozilla.org](https://addons.mozilla.org/en-GB/firefox/addon/nepo-maybe-baby/)
+- **Chrome** —
+  [Chrome Web Store](https://chromewebstore.google.com/detail/nepo-maybe-baby/jnnpioocgbkcpokgggkjapihiijegnah)
+
+To run it from source instead:
 
 **Firefox** — visit `about:debugging` → This Firefox → Load Temporary Add-on,
 and select `manifest.json`. Temporary add-ons are removed when Firefox closes.
