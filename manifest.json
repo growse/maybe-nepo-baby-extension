@@ -31,9 +31,5 @@
       ],
       "run_at": "document_idle"
     }
-  ],
-  "host_permissions": [
-    "https://en.wikipedia.org/*",
-    "https://www.wikidata.org/*"
   ]
 }

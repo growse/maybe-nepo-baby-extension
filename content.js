@@ -88,11 +88,13 @@
   // Wikimedia respond with `Access-Control-Allow-Origin: *`, and Wikipedia's
   // CSP `default-src` allowlists www.wikidata.org.
   //
-  // This is what keeps the extension working on Chrome, where MV3 content
-  // scripts fetch as the page origin and `host_permissions` do not apply to
-  // them. If Wikimedia ever tightens its CORS or CSP headers, Chrome will
-  // break first and this logic has to move back into a background
-  // service worker reached via runtime.sendMessage.
+  // Because of that, the manifest declares no `host_permissions` at all -
+  // Chrome MV3 content scripts fetch as the page origin, so they would not
+  // apply anyway, and declaring them only pushes the store listing into a
+  // slower in-depth review. If Wikimedia ever tightens its CORS or CSP
+  // headers, Chrome will break first, and this logic has to move back into a
+  // background service worker reached via runtime.sendMessage - which would
+  // mean reinstating the host permissions.
   async function fetchJson(url) {
     const response = await fetch(url);
     if (!response.ok) {
