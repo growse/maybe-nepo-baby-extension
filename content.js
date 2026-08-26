@@ -95,8 +95,14 @@
   // headers, Chrome will break first, and this logic has to move back into a
   // background service worker reached via runtime.sendMessage - which would
   // mean reinstating the host permissions.
+  //
+  // `credentials: 'omit'` matters only for the en.wikipedia.org call, which is
+  // same-origin and would otherwise carry the reader's session cookies. The
+  // `origin=*` param already makes MediaWiki serve those requests anonymously,
+  // so the cookies buy nothing -- and omitting them keeps "no cookies are
+  // sent" true on the wire, as the privacy notes claim.
   async function fetchJson(url) {
-    const response = await fetch(url);
+    const response = await fetch(url, { credentials: 'omit' });
     if (!response.ok) {
       throw new Error(`${response.status} ${response.statusText} for ${url}`);
     }
