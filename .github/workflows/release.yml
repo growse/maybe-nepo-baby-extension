@@ -63,3 +63,14 @@ jobs:
           WEB_EXT_API_KEY: ${{ secrets.MOZILLA_API_KEY }}
           WEB_EXT_API_SECRET: ${{ secrets.MOZILLA_API_SECRET }}
         run: just publish-firefox
+
+      # The two stores are independent, so a rejection from one should not stop
+      # the other being submitted -- but a cancelled run still stops here.
+      - name: Publish to the Chrome Web Store
+        if: ${{ !cancelled() }}
+        env:
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: just publish-chrome

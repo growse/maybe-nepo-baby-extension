@@ -2,6 +2,9 @@ name := "nepo-maybe-baby"
 version := `python3 -c "import json; print(json.load(open('manifest.json'))['version'])"`
 dist := "dist"
 
+# Public - the /detail/ segment of the Chrome Web Store listing URL
+chrome_id := "jnnpioocgbkcpokgggkjapihiijegnah"
+
 # List available recipes
 default:
     @just --list
@@ -59,6 +62,84 @@ publish-firefox: package
     mkdir -p {{dist}}/firefox
     unzip -q {{dist}}/{{name}}-{{version}}.zip -d {{dist}}/firefox
     npx --yes web-ext sign --source-dir {{dist}}/firefox --artifacts-dir {{dist}}/web-ext --channel listed --approval-timeout 0
+
+# Upload the built package to the Chrome Web Store and submit it for review
+#
+# Uses the v2 API, which addresses an item as publishers/<id>/items/<id>; the
+# publisher id comes from the developer dashboard's account page. Needs
+# CHROME_PUBLISHER_ID, CHROME_CLIENT_ID, CHROME_CLIENT_SECRET and
+# CHROME_REFRESH_TOKEN in the environment, the last minted against the
+# chromewebstore scope.
+[doc("Upload the built package to the Chrome Web Store and submit it for review")]
+publish-chrome: package
+    #!/usr/bin/env python3
+    import json, os, sys, time, urllib.error, urllib.parse, urllib.request
+
+    def required(name):
+        value = os.environ.get(name)
+        if not value:
+            sys.exit(f"{name} is not set")
+        return value
+
+    def call(url, data=None, headers=None, method="POST"):
+        request = urllib.request.Request(url, data=data, method=method)
+        for key, value in (headers or {}).items():
+            request.add_header(key, value)
+        try:
+            with urllib.request.urlopen(request) as response:
+                body = response.read()
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode(errors="replace")
+            sys.exit(f"{method} {url} failed: {error.code} {detail}")
+        return json.loads(body) if body else {}
+
+    package = "{{dist}}/{{name}}-{{version}}.zip"
+    item = f"publishers/{required('CHROME_PUBLISHER_ID')}/items/{{chrome_id}}"
+
+    # The refresh token is long-lived; this trades it for an hour-long access
+    # token, which is the only credential the store API itself accepts.
+    token = call(
+        "https://oauth2.googleapis.com/token",
+        urllib.parse.urlencode({
+            "client_id": required("CHROME_CLIENT_ID"),
+            "client_secret": required("CHROME_CLIENT_SECRET"),
+            "refresh_token": required("CHROME_REFRESH_TOKEN"),
+            "grant_type": "refresh_token",
+        }).encode(),
+        {"Content-Type": "application/x-www-form-urlencoded"},
+    )["access_token"]
+    auth = {"Authorization": f"Bearer {token}"}
+
+    with open(package, "rb") as handle:
+        uploaded = call(
+            f"https://chromewebstore.googleapis.com/upload/v2/{item}:upload",
+            handle.read(),
+            auth | {"Content-Type": "application/zip"},
+        )
+
+    # The upload usually completes inline, but the API is allowed to return
+    # IN_PROGRESS and finish asynchronously. Publishing before it settles is
+    # rejected, so wait it out rather than racing it.
+    state = uploaded.get("uploadState")
+    deadline = time.monotonic() + 300
+    while state == "IN_PROGRESS" and time.monotonic() < deadline:
+        time.sleep(15)
+        status = call(
+            f"https://chromewebstore.googleapis.com/v2/{item}:fetchStatus",
+            headers=auth,
+            method="GET",
+        )
+        state = status.get("lastAsyncUploadState")
+
+    if state != "SUCCEEDED":
+        sys.exit(f"upload ended in state {state}")
+
+    published = call(
+        f"https://chromewebstore.googleapis.com/v2/{item}:publish",
+        b"{}",
+        auth | {"Content-Type": "application/json"},
+    )
+    print(f"uploaded {package}, item is now {published.get('state')}")
 
 # Remove build output
 clean:
