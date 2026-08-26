@@ -191,13 +191,32 @@
 
     const candidates = parentQids
       .map(qid => ({ qid, enwiki: data?.entities?.[qid]?.sitelinks?.enwiki }))
-      .filter(candidate => candidate.enwiki);
+      .filter(candidate => candidate.enwiki && isEnwikiUrl(candidate.enwiki.url));
 
     const documented = await Promise.all(candidates.map(c => hasRecordedDates(c.qid)));
 
     return candidates
       .filter((_, i) => documented[i])
       .map(({ enwiki }) => ({ title: enwiki.title, url: enwiki.url }));
+  }
+
+  // The sitelink URL ends up in a banner link's href, so it is checked rather
+  // than trusted. MediaWiki builds these server-side from enwiki's own base
+  // URL, so nothing an editor writes reaches here today and this should never
+  // reject anything -- but it is the one place API data meets a DOM sink, and
+  // a scheme check is cheaper than the reasoning needed to be sure it stays
+  // that way. A parent whose URL fails is dropped rather than linked.
+  //
+  // Parsed with no base URL on purpose: these sitelinks are always absolute
+  // https URLs, and resolving against the current page instead would let a
+  // missing or relative value inherit en.wikipedia.org and pass.
+  function isEnwikiUrl(url) {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'https:' && parsed.hostname === 'en.wikipedia.org';
+    } catch {
+      return false;
+    }
   }
 
   // Being classed as human is not enough on its own. Wikidata records
