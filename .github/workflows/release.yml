@@ -54,3 +54,12 @@ jobs:
           gh release create "$GITHUB_REF_NAME" dist/*.zip \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
+
+      # Runs after the release so a rejected upload still leaves the tag's zip
+      # downloadable from GitHub. AMO takes the JWT issuer as the key and the
+      # JWT secret separately; web-ext reads both from the environment.
+      - name: Publish to addons.mozilla.org
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.MOZILLA_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.MOZILLA_API_SECRET }}
+        run: just publish-firefox

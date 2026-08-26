@@ -62,6 +62,7 @@ Requires [`just`](https://github.com/casey/just), Node, Python 3, and
 | `just lint` | Run `web-ext lint`, the same validator addons.mozilla.org runs |
 | `just icons` | Re-render the icon PNGs from `icons/icon.svg` |
 | `just package` | Build a store-ready zip in `dist/` |
+| `just publish-firefox` | Submit that zip to addons.mozilla.org as a listed release |
 | `just clean` | Remove build output |
 
 `just package` depends on `icons` and `check`, so a build can never ship a PNG

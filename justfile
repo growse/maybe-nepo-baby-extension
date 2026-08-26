@@ -44,6 +44,22 @@ package: icons check
     zip -r -X -q {{dist}}/{{name}}-{{version}}.zip manifest.json content.js style.css LICENSE icons -x 'icons/*.svg'
     @echo "built {{dist}}/{{name}}-{{version}}.zip"
 
+# web-ext signs from a directory rather than a zip, so the release package is
+# unpacked and signed from that: AMO then receives exactly the files that ship,
+# instead of whatever an ignore list happens to leave behind in the source tree.
+#
+# `--approval-timeout 0` returns once AMO accepts the upload. A listed
+# submission then waits on human review, which can take days.
+#
+# Needs WEB_EXT_API_KEY (the JWT issuer) and WEB_EXT_API_SECRET in the
+# environment.
+[doc("Submit the built package to addons.mozilla.org as a listed release")]
+publish-firefox: package
+    rm -rf {{dist}}/firefox {{dist}}/web-ext
+    mkdir -p {{dist}}/firefox
+    unzip -q {{dist}}/{{name}}-{{version}}.zip -d {{dist}}/firefox
+    npx --yes web-ext sign --source-dir {{dist}}/firefox --artifacts-dir {{dist}}/web-ext --channel listed --approval-timeout 0
+
 # Remove build output
 clean:
     rm -rf {{dist}}
