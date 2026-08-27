@@ -65,8 +65,10 @@ publish-firefox: package
 
 # Upload the built package to the Chrome Web Store and submit it for review
 #
-# Uses the v2 API, which addresses an item as publishers/<id>/items/<id>; the
-# publisher id comes from the developer dashboard's account page. Needs
+# Uses the v2 API, which addresses an item as publishers/<publisher>/items/<item>.
+# The two ids are different: the item id is the /detail/ segment of the public
+# listing URL, while the publisher id identifies the account and is shown under
+# Publisher > Settings in the developer dashboard. Needs
 # CHROME_PUBLISHER_ID, CHROME_CLIENT_ID, CHROME_CLIENT_SECRET and
 # CHROME_REFRESH_TOKEN in the environment, the last minted against the
 # chromewebstore scope.
