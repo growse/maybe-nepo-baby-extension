@@ -1,7 +1,7 @@
 # Nepo Maybe Baby
 
 <a href="https://addons.mozilla.org/en-GB/firefox/addon/nepo-maybe-baby/"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="Get the Add-on for Firefox" width="166" height="58"></a>
-<a href="https://chromewebstore.google.com/detail/nepo-maybe-baby/jnnpioocgbkcpokgggkjapihiijegnah"><img src="https://developer.chrome.com/static/docs/webstore/branding/image/tbyBjqi7Zu733AAKA5n4.png" alt="Available in the Chrome Web Store" width="206" height="58"></a>
+<a href="https://chromewebstore.google.com/detail/nepo-maybe-baby/jnnpioocgbkcpokgggkjapihiijegnah"><img src="https://developer.chrome.com/static/docs/webstore/branding/image/iNEddTyWiMfLSwFD6qGq.png" alt="Available in the Chrome Web Store" width="205" height="58"></a>
 
 A browser extension that spots Wikipedia articles where the subject's parents
 have their own Wikipedia pages, and gently points it out.
