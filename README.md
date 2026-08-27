@@ -69,6 +69,11 @@ Requires [`just`](https://github.com/casey/just), Node, Python 3, and
 `just package` depends on `icons` and `check`, so a build can never ship a PNG
 that has drifted from the SVG or a manifest pointing at a missing file.
 
+The two publish recipes need store credentials in the environment. Locally
+those can go in a `.env` file, which the justfile loads and `.gitignore`
+excludes; in CI they come from repository secrets. Real environment variables
+take precedence over the file either way.
+
 Hooks are available via [pre-commit](https://pre-commit.com):
 
 ```sh

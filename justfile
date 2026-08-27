@@ -1,3 +1,8 @@
+# Load store credentials from a local .env for the publish recipes. Real
+# environment variables win over the file, so CI's secrets are never shadowed
+# by a stale checkout.
+set dotenv-load := true
+
 name := "nepo-maybe-baby"
 version := `python3 -c "import json; print(json.load(open('manifest.json'))['version'])"`
 dist := "dist"

@@ -1,3 +1,6 @@
 # Build output from `just package`
 dist/
 *.zip
+
+# Store credentials for the publish recipes, loaded by `set dotenv-load`
+.env
