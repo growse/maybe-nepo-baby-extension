@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nepo Maybe Baby",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Flags Wikipedia articles where the subject's parents also have Wikipedia pages. Draw your own conclusions.",
   "icons": {
     "16": "icons/icon-16.png",
